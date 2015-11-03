@@ -26,9 +26,9 @@ SCS="cv.frogg.fr"			# script author Website
 SCF="www.frogg.fr"			# script made for
 SCP=$PWD				# script path
 SCY="2015"				# script copyright year
-#########
-# TODO  #
-#########
+############
+#   TODO   #
+############
 # TODO : tar exclude ( impossible on Esxi 5.5 )
 # TODO : test if client FTP exist and is executable
 # TODO : test if can send mail
