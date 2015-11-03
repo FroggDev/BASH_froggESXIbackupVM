@@ -29,7 +29,7 @@ SCY="2015"				# script copyright year
 #########
 # TODO  #
 #########
-# TODO : tar exclude (impossible on Esxi 5.5)
+# TODO : tar exclude ( impossible on Esxi 5.5 )
 # TODO : test if client FTP exist and is executable
 # TODO : test if can send mail
 echo "*******************************"
