@@ -45,26 +45,26 @@ echo "Optional Parameters"
 echo " ${SCC} {VMNAME} for single VM save"
 echo "*******************************"
 
-#=====[ SUB PART ] Variables=====#
-#==[ Const infos ]==#
+#==[ SUB PART ] Variables==#
+#[ Const infos ]#
 TIM=`date '+%Y%m%d'`			#current date format YYYYMMDD
 FTM=`date '+%Y/%m/%d %H:%M:%S'`		#current date format YYYY/MM/DD HH:MM:SS
 doTAR=1					#Copy Compressed VM files (0 to disable)
 doBAK=1					#Copy VM files (0 to disable)
 doFTP=1					#Copy Compressed VM files to FTP (0 to disable)
 doMAI=1					#Send log by mail once done (0 to disable)
-#==[ Esxi infos ]==#
+#[ Esxi infos ]#
 SRC=/vmfs/volumes/datastore1		#VM folder
 TAR=/vmfs/volumes/datastore1/backup	#BACKUP TAR folder
 BAK=/vmfs/volumes/backup		#BACKUP COPY folder
 MAXTAR=3				#MAX nb of backup in $TAR
 MAXBAK=4				#MAX nb of backup in $BAK
-#==[ FTP infos ]==#
+#[ FTP infos ]#
 FTP=xxxxx				#This is the FTP servers host or IP address.
 PRT=21					#This is the FTP servers port
 USR=xxxxx        			#This is the FTP user that has access to the server.
 PSS=xxxxx        			#This is the password for the FTP user.
-#==[ EMAIL infos ]==#
+#[ EMAIL infos ]#
 SMTP="smtp.example.com"	        	#smtp client used to send the mail
 SNAME="www.frogg.fr"			#server name from smtp ELO
 EFROM="esxi@frogg.fr"        		#email from
@@ -72,12 +72,12 @@ ETO="admin@frogg.fr"        		#email to
 ELOG="XXXXXX"        			#email smtp log base64 encoded
 EPAS="XXXXXX"        			#email smtp pass base64 encoded
 
-#==[ Script infos ]==#
+#[ Script infos ]#
 SCR=/vmfs/volumes/datastore1/script/	#script path
 CLI=./ncftp/bin/ncftpput		#Path to ncftpput command 
 LOG=/vmfs/volumes/datastore1/backup.log	#script logs
 
-#=====[ SUB PART ] Functions=====#
+#[ SUB PART ] Functions#
 #Backup old log
 prepareLogFile()
 {
@@ -155,7 +155,7 @@ esxcli network firewall set --enabled true
 fi
 }
 
-#=====[ PART 0 ] Prepare Script=====#
+#==[ PART 0 ] Prepare Script==#
 prepareLogFile ${LOG}
 logEventTime "*******************************************"
 logEventTime "[ $FTM ] Starting BackUp script"
@@ -177,7 +177,7 @@ fi
 [ $doBAK = 1 ] && mkdir -p $BAK/$TIM
 [ $doTAR = 1 ] && mkdir -p $TAR/$TIM
 
-#=====[ PART 1 ] Backup File=====#
+#==[ PART 1 ] Backup File==#
 logEventTime ""
 logEventTime "[ I ] Doing VM Backup"
 logEventTime "====================="
@@ -217,7 +217,7 @@ for VM in $(ls $SRC);do
 	fi
 done
 
-#=====[ PART 2 ] Check number of existing Backup=====#
+#==[ PART 2 ] Check number of existing Backup==#
 #check number of old backup removed oldest if needed
 logEventTime ""
 logEventTime "[ II ] Checking number of backup"
@@ -228,7 +228,7 @@ delEmptyBk $TAR/$TIM $doTAR
 delOldBk $BAK $MAXBAK $doBAK "COPY"
 delOldBk $TAR $MAXTAR $doTAR "TAR"
 
-#=====[ PART 3 ] Send to BackUp FTP=====#
+#==[ PART 3 ] Send to BackUp FTP==#
 if [ $doFTP = 1 ];then
 	logEventTime ""
 	logEventTime "[ III ] Sending by FTP"
@@ -246,9 +246,9 @@ if [ $doFTP = 1 ];then
 	esxcli network firewall set --enabled true >> $LOG 2>&1
 fi
 
-#=====[ PART 4 ] END=====#
+#==[ PART 4 ] END==#
 logEventTime ""
 logEventTime "Script Done !"
 
-#=====[ PART 5 ] EMAIL RESULT=====#
+#==[ PART 5 ] EMAIL==#
 sendLogByMail
