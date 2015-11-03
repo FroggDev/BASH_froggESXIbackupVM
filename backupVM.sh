@@ -65,7 +65,7 @@ PRT=21					#This is the FTP servers port
 USR=xxxxx        			#This is the FTP user that has access to the server.
 PSS=xxxxx        			#This is the password for the FTP user.
 #==[ EMAIL infos ]==#
-SMTP="smtp.example.com"	        	#smtp client used to send the mail		
+SMTP="smtp.example.com"	        	#smtp client used to send the mail
 SNAME="www.frogg.fr"			#server name from smtp ELO
 EFROM="esxi@frogg.fr"        		#email from
 ETO="admin@frogg.fr"        		#email to
@@ -174,12 +174,8 @@ if [ $doFTP = 1 -a $doTAR = 0 ];then
 	doTAR=1
 fi
 #Create backup folders depending of user request
-if [ $doBAK = 1 ];then
-	mkdir -p $BAK/$TIM
-fi
-if [ $doTAR = 1 ];then
-	mkdir -p $TAR/$TIM
-fi
+[ $doBAK = 1 ] && mkdir -p $BAK/$TIM
+[ $doTAR = 1 ] && mkdir -p $TAR/$TIM
 
 #=====[ PART 1 ] Backup File=====#
 logEventTime ""
@@ -200,7 +196,7 @@ for VM in $(ls $SRC);do
 				vim-cmd vmsvc/snapshot.create $SRC/$VM/$VM.vmx "$TIM Backup" "Auto-backup taken the $FTM" 0 >> $LOG 2>&1 #include memory = 0
 				if [ $doTAR = 1 ];then
 					cd $SRC/$VM/
-					logEventTime "...Compressing..."					
+					logEventTime "...Compressing..."	
 					tar czvf $TAR/$TIM/$VM.tar.gz ./ >> $LOG 2>&1 # TAR EXCLUDE NOT WORKING ON ESXI 5.5 --exclude '*.vswap*' --exclude '*.vmsn*' --exclude '*.lck*' etc ...
 				fi
 				if [ $doBAK = 1 ];then
