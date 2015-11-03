@@ -19,7 +19,7 @@ SRQ="Required version : Esxi 5.1+"		# script Required
 SCC="sh ${0##*/}"				# script call
 SCV="1.000"					# script version
 SCO="2015/02/23"				# script date creation
-SCU="2015/02/23"				# script last modification
+SCU="2015/11/03"				# script last modification
 SCA="Marsiglietti Remy (Frogg)"			# script author
 SCM="admin@frogg.fr"				# script author Mail
 SCS="cv.frogg.fr"				# script author Website
@@ -32,6 +32,7 @@ SCY="2015"					# script copyright year
 # TODO : test if VM is registered (no func for it in esxi 5.5)
 # TODO : tar exclude (look like impossible on Esxi 5.5)
 # TODO : test if client FTP exist and is executable
+# TODO : test if can send mail
 echo "*******************************"
 echo "# ${SCN}"
 echo "# ${SCD}"
@@ -51,6 +52,7 @@ FTM=`date '+%Y/%m/%d %H:%M:%S'`			#current date format YYYY/MM/DD HH:MM:SS
 doTAR=1						#Copy Compressed VM files (0 to disable)
 doBAK=1						#Copy VM files (0 to disable)
 doFTP=1						#Copy Compressed VM files to FTP (0 to disable)
+doMAI=1						#Send log by mail once done (0 to disable)
 #==[ Esxi infos ]==#
 SRC=/vmfs/volumes/datastore1			#VM folder
 TAR=/vmfs/volumes/datastore1/backup		#BACKUP TAR folder
@@ -120,7 +122,36 @@ if nc -w5 -z ${1} ${2} &> /dev/null;then
 	logEventTime "Server [${1}:${2}] port is opened !"	
 else
 	logEventTime "Can't access to Server port [${1}:${2}], End of the script"
+	sendLogByMail
 	exit
+fi
+}
+#Send log by mail
+sendLogByMail()
+{
+if [ ${doMAI} = 1 ];then
+# Disable firewall
+esxcli network firewall set --enabled false
+# Create Mail
+echo "HELO ${SNAME}" > mail.txt
+echo "AUTH LOGIN" >> mail.txt
+echo "${ELOG}" >> mail.txt
+echo "${EPAS}" >> mail.txt
+echo "MAIL FROM:${EFROM}" >> mail.txt
+echo "RCPT TO:${ETO}" >> mail.txt
+echo "DATA" >> mail.txt
+echo "From: ${EFROM}" >> mail.txt
+echo "To: ${ETO}" >> mail.txt
+echo "Subject: Esxi Backup result" >> mail.txt
+echo "" >> mail.txt
+cat $LOG >>  mail.txt
+echo "" >> mail.txt
+echo "." >> mail.txt
+echo "QUIT" >> mail.txt
+# Send the mail
+/usr/bin/nc ${SMTP} 25 < mail.txt
+# Enable Firewall
+esxcli network firewall set --enabled true
 fi
 }
 
@@ -133,6 +164,7 @@ logEventTime ""
 if [ $doTAR = 0 -a $doBAK = 0 ];then
 	logEventTime "ERROR: Tar and Copy backup are disabled...script require at least one of both action"
 	logEventTime "Please check script configuration, script is ending"
+	sendLogByMail
 	exit
 fi
 if [ $doFTP = 1 -a $doTAR = 0 ];then
@@ -223,25 +255,4 @@ logEventTime ""
 logEventTime "Script Done !"
 
 #=====[ PART 5 ] EMAIL RESULT=====#
-# Disable firewall
-esxcli network firewall set --enabled false
-# Create Mail
-echo "HELO ${SNAME}" > mail.txt
-echo "AUTH LOGIN" >> mail.txt
-echo "${ELOG}" >> mail.txt
-echo "${EPAS}" >> mail.txt
-echo "MAIL FROM:${EFROM}" >> mail.txt
-echo "RCPT TO:${ETO}" >> mail.txt
-echo "DATA" >> mail.txt
-echo "From: ${EFROM}" >> mail.txt
-echo "To: ${ETO}" >> mail.txt
-echo "Subject: Esxi Backup result" >> mail.txt
-echo "" >> mail.txt
-cat $LOG >>  mail.txt
-echo "" >> mail.txt
-echo "." >> mail.txt
-echo "QUIT" >> mail.txt
-# Send the mail
-/usr/bin/nc ${SMTP} 25 < mail.txt
-# Enable Firewall
-esxcli network firewall set --enabled true
+sendLogByMail
