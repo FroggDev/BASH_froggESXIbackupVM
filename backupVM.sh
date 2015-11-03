@@ -11,22 +11,21 @@
 #   _\ \/  \.______./  \/ /_
 #   ___/ /\__________/\ \___
 #  *****************************
-SCN="ESXI VM BackUp"   			# script name
+SCN="ESXI VM BackUp"   				# script name
 SCD="BackUp all Vm in ESXI and send it to ftp server"
-								# script description
+						# script description
 SCT="Esxi 5.5"					# script OS Test
-SRQ="Required version : Esxi 5.1+"
-								# script Required
+SRQ="Required version : Esxi 5.1+"		# script Required
 SCC="sh ${0##*/}"				# script call
-SCV="1.000"						# script version
+SCV="1.000"					# script version
 SCO="2015/02/23"				# script date creation
 SCU="2015/02/23"				# script last modification
-SCA="Marsiglietti Remy (Frogg)"	# script author
-SCM="admin@frogg.fr"			# script author Mail
+SCA="Marsiglietti Remy (Frogg)"			# script author
+SCM="admin@frogg.fr"				# script author Mail
 SCS="cv.frogg.fr"				# script author Website
 SCF="www.frogg.fr"				# script made for
-SCP=$PWD						# script path
-SCY="2015"						# script copyright year
+SCP=$PWD					# script path
+SCY="2015"					# script copyright year
 #############
 # TODO LIST #
 #############
@@ -47,33 +46,51 @@ echo "*******************************"
 
 #=====[ SUB PART ] Variables=====#
 #==[ Const infos ]==#
-TIM=`date '+%Y%m%d'`					#current date format YYYYMMDD
+TIM=`date '+%Y%m%d'`				#current date format YYYYMMDD
 FTM=`date '+%Y/%m/%d %H:%M:%S'`			#current date format YYYY/MM/DD HH:MM:SS
-doTAR=1									#Copy Compressed VM files (0 to disable)
-doBAK=1									#Copy VM files (0 to disable)
-doFTP=1									#Copy Compressed VM files to FTP (0 to disable)
+doTAR=1						#Copy Compressed VM files (0 to disable)
+doBAK=1						#Copy VM files (0 to disable)
+doFTP=1						#Copy Compressed VM files to FTP (0 to disable)
 #==[ Esxi infos ]==#
 SRC=/vmfs/volumes/datastore1			#VM folder
 TAR=/vmfs/volumes/datastore1/backup		#BACKUP TAR folder
-BAK=/vmfs/volumes/backup				#BACKUP COPY folder
-MAXTAR=3								#MAX nb of backup in $TAR
-MAXBAK=4								#MAX nb of backup in $BAK
+BAK=/vmfs/volumes/backup			#BACKUP COPY folder
+MAXTAR=3					#MAX nb of backup in $TAR
+MAXBAK=4					#MAX nb of backup in $BAK
 #==[ FTP infos ]==#
-FTP=xxxxx								#This is the FTP servers host or IP address.
-PRT=21									#This is the FTP servers port
-USR=xxxxx        						#This is the FTP user that has access to the server.
-PSS=xxxxx        						#This is the password for the FTP user.
+FTP=xxxxx					#This is the FTP servers host or IP address.
+PRT=21						#This is the FTP servers port
+USR=xxxxx        				#This is the FTP user that has access to the server.
+PSS=xxxxx        				#This is the password for the FTP user.
+#==[ EMAIL infos ]==#
+SMTP="smtp.example.com"	        		#smtp client used to send the mail		
+SNAME="www.frogg.fr"				#server name from smtp ELO
+EFROM="esxi@frogg.fr"        			#email from
+ETO="admin@frogg.fr"        			#email to
+ELOG="XXXXXX"        				#email smtp log base64 encoded
+EPAS="XXXXXX"        				#email smtp pass base64 encoded
+
 #==[ Script infos ]==#
-SCR=/vmfs/volumes/datastore1/script/	#script path
-CLI=./ncftp/bin/ncftpput				#Path to ncftpput command 
-LOG=/vmfs/volumes/datastore1/backup.log	#script logs
+SCR=/vmfs/volumes/datastore1/script/		#script path
+CLI=./ncftp/bin/ncftpput			#Path to ncftpput command 
+LOG=/vmfs/volumes/datastore1/backup.log		#script logs
 
 #=====[ SUB PART ] Functions=====#
+#Backup old log
+prepareLogFile()
+{
+touch ${1}
+touch ${1}.history
+cat ${1} >> ${1}.history
+echo "" > ${1}
+}
+#Create time + event in log file
 logEventTime()
 {
 echo $1
 echo -e "[ "`date '+%H:%M:%S'`" ] $1"  >> $LOG
 }
+#Delete old backup if needed
 delOldBk()
 {
 #count nb backup folder
@@ -108,6 +125,7 @@ fi
 }
 
 #=====[ PART 0 ] Prepare Script=====#
+prepareLogFile ${LOG}
 logEventTime "*******************************************"
 logEventTime "[ $FTM ] Starting BackUp script"
 logEventTime "*******************************************"
@@ -203,3 +221,27 @@ fi
 #=====[ PART 4 ] END=====#
 logEventTime ""
 logEventTime "Script Done !"
+
+#=====[ PART 5 ] EMAIL RESULT=====#
+# Disable firewall
+esxcli network firewall set --enabled false
+# Create Mail
+echo "HELO ${SNAME}" > mail.txt
+echo "AUTH LOGIN" >> mail.txt
+echo "${ELOG}" >> mail.txt
+echo "${EPAS}" >> mail.txt
+echo "MAIL FROM:${EFROM}" >> mail.txt
+echo "RCPT TO:${ETO}" >> mail.txt
+echo "DATA" >> mail.txt
+echo "From: ${EFROM}" >> mail.txt
+echo "To: ${ETO}" >> mail.txt
+echo "Subject: Esxi Backup result" >> mail.txt
+echo "" >> mail.txt
+cat $LOG >>  mail.txt
+echo "" >> mail.txt
+echo "." >> mail.txt
+echo "QUIT" >> mail.txt
+# Send the mail
+/usr/bin/nc ${SMTP} 25 < mail.txt
+# Enable Firewall
+esxcli network firewall set --enabled true
