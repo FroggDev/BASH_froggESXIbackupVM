@@ -17,21 +17,15 @@ SCD="BackUp all Vm in ESXI and send it to ftp server"
 SCT="Esxi 5.5"				# script OS Test
 SRQ="Required version : Esxi 5.1+"	# script Required
 SCC="sh ${0##*/}"			# script call
-SCV="1.000"				# script version
+SCV="1.001"				# script version
 SCO="2015/02/23"			# script date creation
-SCU="2015/11/03"			# script last modification
+SCU="2015/11/08"			# script last modification
 SCA="Marsiglietti Remy (Frogg)"		# script author
 SCM="admin@frogg.fr"			# script author Mail
 SCS="cv.frogg.fr"			# script author Website
 SCF="www.frogg.fr"			# script made for
 SCP=$PWD				# script path
 SCY="2015"				# script copyright year
-############
-#   TODO   #
-############
-# TODO : tar exclude ( impossible on Esxi 5.5 )
-# TODO : test if client FTP exist and is executable
-# TODO : test if can send mail
 echo "*******************************"
 echo "# ${SCN}"
 echo "# ${SCD}"
@@ -46,30 +40,32 @@ echo "*******************************"
 
 #==[ SUB PART ] Variables==#
 #[ Const infos ]#
-TIM=`date '+%Y%m%d'`			#current date format YYYYMMDD
-FTM=`date '+%Y/%m/%d %H:%M:%S'`		#current date format YYYY/MM/DD HH:MM:SS
-doTAR=1					#Copy Compressed VM files (0 to disable)
-doBAK=1					#Copy VM files (0 to disable)
-doFTP=1					#Copy Compressed VM files to FTP (0 to disable)
-doMAI=1					#Send log by mail once done (0 to disable)
+TIM=`date '+%Y%m%d'`		#current date format YYYYMMDD
+FTM=`date '+%Y/%m/%d %H:%M:%S'`	#current date format YYYY/MM/DD HH:MM:SS
+doTAR=1				#Copy Compressed VM files to $TAR (0 to disable)
+doBAR=1				#Copy Compressed VM to $BAK (0 to disable)
+doBAK=0				#Copy VM folders to $BAK (0 to disable)
+doFTP=0				#Copy Compressed VM files to FTP (0 to disable)
+doMAI=1				#Send log by mail once done (0 to disable)
 #[ Esxi infos ]#
-SRC=/vmfs/volumes/datastore1		#VM folder
+SRC=/vmfs/volumes/datastore1	#VM folder
 TAR=/vmfs/volumes/datastore1/backup	#BACKUP TAR folder
-BAK=/vmfs/volumes/backup		#BACKUP COPY folder
-MAXTAR=3				#MAX nb of backup in $TAR
-MAXBAK=4				#MAX nb of backup in $BAK
+BAK=/vmfs/volumes/backup	#BACKUP COPY folder
+MAXTAR=4			#MAX nb of backup in $TAR
+MAXBAK=4			#MAX nb of backup in $BAK
+MAXBAR=4			#MAX nb of backup in $BAR
 #[ FTP infos ]#
-FTP=xxxxx				#This is the FTP servers host or IP address.
-PRT=21					#This is the FTP servers port
-USR=xxxxx        			#This is the FTP user that has access to the server.
-PSS=xxxxx        			#This is the password for the FTP user.
+FTP=xxx				#This is the FTP servers host or IP address.
+PRT=21				#This is the FTP servers port
+USR=xxx        			#This is the FTP user that has access to the server.
+PSS=xxx				#This is the password for the FTP user.
 #[ EMAIL infos ]#
-SMTP="smtp.example.com"	        	#smtp client used to send the mail
-SNAME="www.frogg.fr"			#server name from smtp ELO
-EFROM="esxi@frogg.fr"        		#email from
-ETO="admin@frogg.fr"        		#email to
-ELOG="XXXXXX"        			#email smtp log base64 encoded
-EPAS="XXXXXX"        			#email smtp pass base64 encoded
+SMTP="xxx"			#smtp client used to send the mail
+SNAME="www.frogg.fr"		#server name from smtp ELO
+EFROM="esxi@frogg.fr"        	#email from
+ETO="admin@frogg.fr"        	#email to
+ELOG="xxx"     			#email smtp log base64 encoded
+EPAS="xxx"      	 	#email smtp pass base64 encoded
 
 #[ Script infos ]#
 SCR=/vmfs/volumes/datastore1/script/	#script path
@@ -169,11 +165,19 @@ fi
 if [ $doFTP = 1 -a $doTAR = 0 ];then
 	logEventTime "WARNING: Tar backup is disabled...script require it enabled to FTP compressed files"
 	logEventTime "script is forcing Tar creation to be correct"
-	logEventTime "Please check script configuration, script continue"
+	logEventTime "Please check script configuration for doTAR value, script continue"
 	doTAR=1
 fi
+if [ $doBAR = 1 -a $doTAR = 0 ];then
+	logEventTime "WARNING: Tar backup is disabled...script require it enabled to backup compressed files"
+	logEventTime "script is forcing Tar creation to be correct"
+	logEventTime "Please check script configuration for doTAR value, script continue"
+	doTAR=1
+fi
+
 #Create backup folders depending of user request
 [ $doBAK = 1 ] && mkdir -p $BAK/$TIM
+[ $doBAR = 1 ] && mkdir -p $BAK/$TIM
 [ $doTAR = 1 ] && mkdir -p $TAR/$TIM
 
 #==[ PART 1 ] Backup File==#
@@ -197,6 +201,7 @@ for VM in $(ls $SRC);do
 					cd $SRC/$VM/
 					logEventTime "...Compressing..."	
 					tar czvf $TAR/$TIM/$VM.tar.gz ./ >> $LOG 2>&1 # TAR EXCLUDE NOT WORKING ON ESXI 5.5 --exclude '*.vswap*' --exclude '*.vmsn*' --exclude '*.lck*' etc ...
+					[ $doBAR = 1 ]&&cp $TAR/$TIM/$VM.tar.gz $BAK/$TIM/
 				fi
 				if [ $doBAK = 1 ];then
 					cd $SRC/
@@ -224,8 +229,9 @@ logEventTime "================================"
 logEventTime ""
 delEmptyBk $BAK/$TIM $doBAK
 delEmptyBk $TAR/$TIM $doTAR
-delOldBk $BAK $MAXBAK $doBAK "COPY"
 delOldBk $TAR $MAXTAR $doTAR "TAR"
+delOldBk $BAK $MAXBAR $doBAR "TAR COPY"
+delOldBk $BAK $MAXBAK $doBAK "VM COPY"
 
 #==[ PART 3 ] Send to BackUp FTP==#
 if [ $doFTP = 1 ];then
