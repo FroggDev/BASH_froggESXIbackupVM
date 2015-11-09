@@ -50,7 +50,8 @@ doMAI=1				#Send log by mail once done (0 to disable)
 #Esxi infos
 SRC=/vmfs/volumes/datastore1	#VM folder
 TAR=/vmfs/volumes/datastore1/backup	#BACKUP TAR folder
-BAK=/vmfs/volumes/backup	#BACKUP COPY folder
+BAK=/vmfs/volumes/backup1	#BACKUP COPY folder
+BAR=/vmfs/volumes/backup2	#BACKUP COPY TAR folder
 MAXTAR=4			#MAX nb of backup in $TAR
 MAXBAK=4			#MAX nb of backup in $BAK
 MAXBAR=4			#MAX nb of backup in $BAR
@@ -176,7 +177,7 @@ fi
 
 #Create backup folders depending of user request
 [ $doBAK = 1 ]&&mkdir -p $BAK/$TIM
-[ $doBAR = 1 ]&&mkdir -p $BAK/$TIM
+[ $doBAR = 1 ]&&mkdir -p $BAR/$TIM
 [ $doTAR = 1 ]&&mkdir -p $TAR/$TIM
 
 #[ PART 1 ] Backup File
@@ -200,7 +201,7 @@ for VM in $(ls $SRC);do
 					cd $SRC/$VM/
 					logEventTime "...Compressing..."	
 					tar czvf $TAR/$TIM/$VM.tar.gz ./ >> $LOG 2>&1 # TAR EXCLUDE NOT WORKING ON ESXI 5.5 --exclude '*.vswap*' --exclude '*.vmsn*' --exclude '*.lck*' etc ...
-					[ $doBAR = 1 ]&&cp $TAR/$TIM/$VM.tar.gz $BAK/$TIM/
+					[ $doBAR = 1 ]&&cp $TAR/$TIM/$VM.tar.gz $BAR/$TIM/
 				fi
 				if [ $doBAK = 1 ];then
 					cd $SRC/
@@ -227,9 +228,10 @@ logEventTime "[ II ] Checking number of backup"
 logEventTime "================================"
 logEventTime ""
 delEmptyBk $BAK/$TIM $doBAK
+delEmptyBk $BAR/$TIM $doBAR
 delEmptyBk $TAR/$TIM $doTAR
 delOldBk $TAR $MAXTAR $doTAR "TAR"
-delOldBk $BAK $MAXBAR $doBAR "TAR COPY"
+delOldBk $BAR $MAXBAR $doBAR "TAR COPY"
 delOldBk $BAK $MAXBAK $doBAK "VM COPY"
 
 #[ PART 3 ] Send to BackUp FTP
