@@ -97,7 +97,7 @@ if [ $3 = 1 ];then
 	#if too much backups then remove oldest
 	if [ $nbBAK -gt $2 ];then
 		oldBAK=$(ls -dt $1/*/ | tail -1)
-		rm -r $1/$oldBAK >> $LOG 2>&1
+		rm -r $oldBAK >> $LOG 2>&1
 		logEventTime "...oldest backup  deleted: $oldBAK"
 	fi
 fi
