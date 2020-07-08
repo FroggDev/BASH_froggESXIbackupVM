@@ -11,21 +11,27 @@
 #   _\ \/  \.______./  \/ /_
 #   ___/ /\__________/\ \___
 #  *****************************
-SCN="ESXI VM BackUp"   			# script name
+SCN="ESXI VM BackUp"               # script name
 SCD="BackUp all Vm in ESXI and send it to ftp server"
-					# script description
-SCT="Esxi 5.5"				# script OS Test
-SRQ="Required version : Esxi 5.1+"	# script Required
-SCC="sh ${0##*/}"			# script call
-SCV="1.001"				# script version
-SCO="2015/02/23"			# script date creation
-SCU="2015/11/08"			# script last modification
-SCA="Marsiglietti Remy (Frogg)"		# script author
-SCM="admin@frogg.fr"			# script author Mail
-SCS="cv.frogg.fr"			# script author Website
-SCF="www.frogg.fr"			# script made for
-SCP=$PWD				# script path
-SCY="2015"				# script copyright year
+                                   # script description
+SCT="Esxi 5.1 to 6.7"              # script OS Test
+SRQ="Required version : Esxi 5.1+" # script Required
+SCC="sh ${0##*/}"                  # script call
+SCV="1.001"                        # script version
+SCO="2015/02/23"                   # script date creation
+SCU="2020/07/08"                   # script last modification
+SCA="Marsiglietti Remy (Frogg)"    # script author
+SCM="admin@frogg.fr"               # script author Mail
+SCS="cv.frogg.fr"                  # script author Website
+SCF="www.frogg.fr"                 # script made for
+SCP=$PWD                           # script path
+SCY="2020"                         # script copyright year
+############
+#   TODO   #
+############
+# TODO : tar exclude ( impossible on Esxi 5.5 )
+# TODO : test if client FTP exist and is executable
+# TODO : test if can send mail
 echo "*******************************"
 echo "# ${SCN}"
 echo "# ${SCD}"
@@ -38,44 +44,47 @@ echo "Optional Parameters"
 echo " ${SCC} {VMNAME} for single VM save"
 echo "*******************************"
 
-#[ SUB PART ] Variables
-#Const infos
-TIM=`date '+%Y%m%d'`		#current date format YYYYMMDD
-FTM=`date '+%Y/%m/%d %H:%M:%S'`	#current date format YYYY/MM/DD HH:MM:SS
-doTAR=1				#Copy Compressed VM files to $TAR (0 to disable)
-doBAR=1				#Copy Compressed VM to $BAK (0 to disable)
-doBAK=0				#Copy VM folders to $BAK (0 to disable)
-doFTP=0				#Copy Compressed VM files to FTP (0 to disable)
-doMAI=1				#Send log by mail once done (0 to disable)
-#Esxi infos
-SRC=/vmfs/volumes/datastore1	#VM folder
-TAR=/vmfs/volumes/datastore1/backup	#BACKUP TAR folder
-BAK=/vmfs/volumes/backup1	#BACKUP COPY folder
-BAR=/vmfs/volumes/backup2	#BACKUP COPY TAR folder
-MAXTAR=4			#MAX nb of backup in $TAR
-MAXBAK=4			#MAX nb of backup in $BAK
-MAXBAR=4			#MAX nb of backup in $BAR
-#FTP infos
-FTP=xxx				#This is the FTP servers host or IP address.
-PRT=21				#This is the FTP servers port
-USR=xxx        			#This is the FTP user that has access to the server.
-PSS=xxx				#This is the password for the FTP user.
-#EMAIL infos
-SMTP="xxx"			#smtp client used to send the mail
-SNAME="www.frogg.fr"		#server name from smtp ELO
-EFROM="esxi@frogg.fr"        	#email from
-ETO="admin@frogg.fr"        	#email to
-ELOG="xxx"     			#email smtp log base64 encoded
-EPAS="xxx"      	 	#email smtp pass base64 encoded
-#Script infos
-SCR=/vmfs/volumes/datastore1/script/	#script path
-CLI=./ncftp/bin/ncftpput		#Path to ncftpput command 
-LOG=/vmfs/volumes/datastore1/backup.log	#script logs
+#==[ SUB PART ] Variables==#
+#[ Const infos ]#
+TIM=`date '+%Y%m%d'`             #current date format YYYYMMDD
+FTM=`date '+%Y/%m/%d %H:%M:%S'`  #current date format YYYY/MM/DD HH:MM:SS
+doTAR=1                          #Copy Compressed VM files to $TAR (0 to disable)
+doBAR=0                          #Copy Compressed VM to $BAK (0 to disable)
+doBAK=0                          #Copy VM folders to $BAK (0 to disable)
+doFTP=1                          #Copy Compressed VM files to FTP (0 to disable)
+doMAI=1                          #Send log by mail once done (0 to disable)
+#[ Esxi infos ]#
+SRC=/vmfs/volumes/datastore1     #VM folder
+TAR=/vmfs/volumes/datastore1/backup   #BACKUP TAR folder
+BAK=/vmfs/volumes/backup         #BACKUP COPY folder
+MAXTAR=5                         #MAX nb of backup in $TAR
+MAXBAK=5                         #MAX nb of backup in $BAK
+MAXBAR=5                         #MAX nb of backup in $BAR
+#[ FTP infos ]#
+FTP=ftp.smtp.domain.ltd          #This is the FTP servers host or IP address.
+PRT=21                           #This is the FTP servers port
+USR=userFTP                      #This is the FTP user that has access to the server.
+PSS=passFTP                      #This is the password for the FTP user.
+#[ EMAIL infos ]#
+SMTP="smtp.domain.ltd"           #smtp client used to send the mail
+SMTPPORT=25                      #smtp port
+SNAME="domain.ltd"               #server name from smtp ELO
+EFROM="emailfrom@domain.ltd"     #email from
+ETO="emailto1@domain.ltd emailto2@domain.ltd" #email to (for multiple recipient must be separated by space)
+ELOG="base64loginsmtp"           #email smtp log base64 encoded
+EPAS="base64passsmtp"            #email smtp pass base64 encoded
 
-#[ SUB PART ] Functions
+#[ Script infos ]#
+SCR=/vmfs/volumes/datastore1/script/         #script path
+CLI=./ncftp/bin/ncftpput                     #Path to ncftpput command 
+LOGP=/vmfs/volumes/datastore1/log/
+LOG=${LOGP}/backup.log                       #script logs
+
+#[ SUB PART ] Functions#
 #Backup old log
 prepareLogFile()
 {
+mkdir -p ${2}
 touch ${1}
 touch ${1}.history
 cat ${1} >> ${1}.history
@@ -90,10 +99,12 @@ echo -e "[ "`date '+%H:%M:%S'`" ] $1"  >> $LOG
 #Delete old backup if needed
 delOldBk()
 {
-#count nb backup folder
-nbBAK=$(ls $1/*/ -d | wc -l)
-logEventTime "there is [ $nbBAK / $2 ] $4 backup found in $1..."
+# check if functionnality is enabled
 if [ $3 = 1 ];then 	
+  #count nb backup folder
+  nbBAK=$(ls $1/*/ -d | wc -l)
+  logEventTime "there is [ $nbBAK / $2 ] $4 backup found in $1..."
+
 	#if too much backups then remove oldest
 	if [ $nbBAK -gt $2 ];then
 		oldBAK=$(ls -dt $1/*/ | tail -1)
@@ -106,7 +117,7 @@ fi
 delEmptyBk()
 {
 if [ $2 = 1 ];then 	
-	[ ! "$(ls -A $1)" ]&& echo "rm -R $1" >> $LOG 2>&1
+	[ ! "$(ls -A $1)" ] &&  echo "rm -R $1"  >> $LOG 2>&1
 fi
 }
 #Test if server port is UP
@@ -125,6 +136,7 @@ fi
 sendLogByMail()
 {
 if [ ${doMAI} = 1 ];then
+
 # Disable firewall
 esxcli network firewall set --enabled false
 # Create Mail
@@ -133,29 +145,30 @@ echo "AUTH LOGIN" >> mail.txt
 echo "${ELOG}" >> mail.txt
 echo "${EPAS}" >> mail.txt
 echo "MAIL FROM:${EFROM}" >> mail.txt
-echo "RCPT TO:${ETO}" >> mail.txt
+for email in ${ETO}; do echo "RCPT TO:${email}" >> mail.txt;done
 echo "DATA" >> mail.txt
 echo "From: ${EFROM}" >> mail.txt
-echo "To: ${ETO}" >> mail.txt
-echo "Subject: Esxi Backup result" >> mail.txt
+for email in ${ETO}; do echo "To: ${email}" >> mail.txt;done
+echo "Subject: [SUCCESS] Esxi backup result" >> mail.txt
 echo "" >> mail.txt
 cat $LOG >>  mail.txt
 echo "" >> mail.txt
 echo "." >> mail.txt
 echo "QUIT" >> mail.txt
 # Send the mail
-/usr/bin/nc ${SMTP} 25 < mail.txt
+cat "mail.txt" |while read L; do sleep "2"; echo "$L"; done | "nc" -C -v ${SMTP} ${SMTPPORT}
 # Enable Firewall
 esxcli network firewall set --enabled true
 fi
 }
 
-#[ PART 0 ] Prepare Script
-prepareLogFile ${LOG}
+#==[ PART 0 ] Prepare Script==#
+prepareLogFile ${LOG} ${LOGP}
 logEventTime "*******************************************"
 logEventTime "[ $FTM ] Starting BackUp script"
 logEventTime "*******************************************"
 logEventTime ""
+
 if [ $doTAR = 0 -a $doBAK = 0 ];then
 	logEventTime "ERROR: Tar and Copy backup are disabled...script require at least one of both action"
 	logEventTime "Please check script configuration, script is ending"
@@ -175,15 +188,34 @@ if [ $doBAR = 1 -a $doTAR = 0 ];then
 	doTAR=1
 fi
 
-#Create backup folders depending of user request
-[ $doBAK = 1 ]&&mkdir -p $BAK/$TIM
-[ $doBAR = 1 ]&&mkdir -p $BAR/$TIM
-[ $doTAR = 1 ]&&mkdir -p $TAR/$TIM
+# Check config
+[[ $doBAK = 1 ]] && logEventTime "Copy VM to $BAK enabled"
+[[ $doTAR = 1 ]] && logEventTime "VM compression in $TAR enabled"
+[[ $doBAR = 1 ]] && logEventTime "VM compression in $BAK enabled"
+[[ $doFTP = 1 ]] && logEventTime "FTP copy to $FTP enabled"
+[[ $doMAI = 1 ]] && logEventTime "Send mail to $ETO enabled"
 
-#[ PART 1 ] Backup File
+#Create backup folders depending of user request
+[ $doBAK = 1 ] && mkdir -p $BAK/$TIM
+[ $doBAR = 1 ] && mkdir -p $BAK/$TIM
+[ $doTAR = 1 ] && mkdir -p $TAR/$TIM
+
+#==[ PART 1 ] Check number of existing Backup==#
+#check number of old backup removed oldest if needed
 logEventTime ""
-logEventTime "[ I ] Doing VM Backup"
-logEventTime "====================="
+logEventTime "[ I ] Checking number of backup"
+logEventTime "==============================="
+logEventTime ""
+delEmptyBk $BAK/$TIM $doBAK
+delEmptyBk $TAR/$TIM $doTAR
+delOldBk $TAR $MAXTAR $doTAR "TAR"
+delOldBk $BAK $MAXBAR $doBAR "TAR COPY"
+delOldBk $BAK $MAXBAK $doBAK "VM COPY"
+
+#==[ PART 2 ] Backup File==#
+logEventTime ""
+logEventTime "[ II ] Doing VM Backup"
+logEventTime "======================"
 logEventTime ""
 #check all folder in data-store
 for VM in $(ls $SRC);do
@@ -201,7 +233,7 @@ for VM in $(ls $SRC);do
 					cd $SRC/$VM/
 					logEventTime "...Compressing..."	
 					tar czvf $TAR/$TIM/$VM.tar.gz ./ >> $LOG 2>&1 # TAR EXCLUDE NOT WORKING ON ESXI 5.5 --exclude '*.vswap*' --exclude '*.vmsn*' --exclude '*.lck*' etc ...
-					[ $doBAR = 1 ]&&cp $TAR/$TIM/$VM.tar.gz $BAR/$TIM/
+					[ $doBAR = 1 ]&&cp $TAR/$TIM/$VM.tar.gz $BAK/$TIM/
 				fi
 				if [ $doBAK = 1 ];then
 					cd $SRC/
@@ -221,21 +253,12 @@ for VM in $(ls $SRC);do
 	fi
 done
 
-#[ PART 2 ] Check number of existing Backup
-#check number of old backup removed oldest if needed
-logEventTime ""
-logEventTime "[ II ] Checking number of backup"
-logEventTime "================================"
-logEventTime ""
-delEmptyBk $BAK/$TIM $doBAK
-delEmptyBk $BAR/$TIM $doBAR
-delEmptyBk $TAR/$TIM $doTAR
-delOldBk $TAR $MAXTAR $doTAR "TAR"
-delOldBk $BAR $MAXBAR $doBAR "TAR COPY"
-delOldBk $BAK $MAXBAK $doBAK "VM COPY"
-
-#[ PART 3 ] Send to BackUp FTP
+#==[ PART 3 ] Send to BackUp FTP==#
 if [ $doFTP = 1 ];then
+
+  [[ $doTAR = 1 ]] && READFROM=$TAR
+  [[ $doBAR = 1 ]] && READFROM=$BAK
+
 	logEventTime ""
 	logEventTime "[ III ] Sending by FTP"
 	logEventTime "====================="
@@ -243,18 +266,18 @@ if [ $doFTP = 1 ];then
 	testConn $FTP $PRT
 	logEventTime "Disable FTP client firewall ..."
 	esxcli network firewall set --enabled false >> $LOG 2>&1
-	for BK in $(ls $BAK/$TIM/);do
+	for BK in $(ls $READFROM/$TIM/);do
 		logEventTime "send [$BK] via ftp ..."
 		cd $SCR
-		$CLI -u $USR -p $PSS -v -z -t 3 -F -P $PRT $FTP / $BAK/$TIM/$BK >> $LOG 2>&1
+		$CLI -u $USR -p $PSS -v -z -t 3 -F -P $PRT $FTP / $READFROM/$TIM/$BK >> $LOG 2>&1
 	done
 	logEventTime "Enabling FTP client firewall ..."
 	esxcli network firewall set --enabled true >> $LOG 2>&1
 fi
 
-#[ PART 4 ] END
+#==[ PART 4 ] END==#
 logEventTime ""
 logEventTime "Script Done !"
 
-#[ PART 5 ] EMAIL
+#==[ PART 5 ] EMAIL==#
 sendLogByMail
