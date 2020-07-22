@@ -263,9 +263,9 @@ if [ $doFTP = 1 ];then
 	logEventTime "[ III ] Sending by FTP"
 	logEventTime "====================="
 	logEventTime ""
-	testConn $FTP $PRT
 	logEventTime "Disable FTP client firewall ..."
 	esxcli network firewall set --enabled false >> $LOG 2>&1
+	testConn $FTP $PRT
 	for BK in $(ls $READFROM/$TIM/);do
 		logEventTime "send [$BK] via ftp ..."
 		cd $SCR
