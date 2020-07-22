@@ -73,6 +73,7 @@ EFROM="emailfrom@domain.ltd"     #email from
 ETO="emailto1@domain.ltd emailto2@domain.ltd" #email to (for multiple recipient must be separated by space)
 ELOG="base64loginsmtp"           #email smtp log base64 encoded
 EPAS="base64passsmtp"            #email smtp pass base64 encoded
+RESULTTITLE="SUCCESS"
 
 #[ Script infos ]#
 SCR=/vmfs/volumes/datastore1/script/         #script path
@@ -127,6 +128,7 @@ logEventTime "...Checking if server '${1}' is available, please wait..."
 if nc -w5 -z ${1} ${2} &> /dev/null;then
 	logEventTime "Server [${1}:${2}] port is opened !"	
 else
+        RESULTTITLE="WARNING"
 	logEventTime "Can't access to Server port [${1}:${2}], End of the script"
 	sendLogByMail
 	exit
@@ -149,7 +151,7 @@ for email in ${ETO}; do echo "RCPT TO:${email}" >> mail.txt;done
 echo "DATA" >> mail.txt
 echo "From: ${EFROM}" >> mail.txt
 for email in ${ETO}; do echo "To: ${email}" >> mail.txt;done
-echo "Subject: [SUCCESS] Esxi backup result" >> mail.txt
+echo "Subject: [${RESULTTITLE}] Esxi backup result" >> mail.txt
 echo "" >> mail.txt
 cat $LOG >>  mail.txt
 echo "" >> mail.txt
@@ -170,18 +172,21 @@ logEventTime "*******************************************"
 logEventTime ""
 
 if [ $doTAR = 0 -a $doBAK = 0 ];then
+        RESULTTITLE="ERROR"
 	logEventTime "ERROR: Tar and Copy backup are disabled...script require at least one of both action"
 	logEventTime "Please check script configuration, script is ending"
 	sendLogByMail
 	exit
 fi
 if [ $doFTP = 1 -a $doTAR = 0 ];then
+        RESULTTITLE="WARNING"
 	logEventTime "WARNING: Tar backup is disabled...script require it enabled to FTP compressed files"
 	logEventTime "script is forcing Tar creation to be correct"
 	logEventTime "Please check script configuration for doTAR value, script continue"
 	doTAR=1
 fi
 if [ $doBAR = 1 -a $doTAR = 0 ];then
+        RESULTTITLE="WARNING"
 	logEventTime "WARNING: Tar backup is disabled...script require it enabled to backup compressed files"
 	logEventTime "script is forcing Tar creation to be correct"
 	logEventTime "Please check script configuration for doTAR value, script continue"
