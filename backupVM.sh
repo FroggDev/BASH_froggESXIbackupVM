@@ -65,6 +65,7 @@ FTP=ftp.smtp.domain.ltd          #This is the FTP servers host or IP address.
 PRT=21                           #This is the FTP servers port
 USR=userFTP                      #This is the FTP user that has access to the server.
 PSS=passFTP                      #This is the password for the FTP user.
+FTPATH=backup-esxi               #This is the root FTP folder.
 #[ EMAIL infos ]#
 SMTP="smtp.domain.ltd"           #smtp client used to send the mail
 SMTPPORT=25                      #smtp port
@@ -270,11 +271,18 @@ if [ $doFTP = 1 ];then
 	logEventTime ""
 	logEventTime "Disable FTP client firewall ..."
 	esxcli network firewall set --enabled false >> $LOG 2>&1
-	testConn $FTP $PRT
+	# Test FTP Conn
+	testConn $FTP $PRT  
+  	# Create the FTP remote folder
+  	$CLI ftp://$USR:$PSS@$FTP:$PRT/<<EOF
+mkdir /${FTPATH}
+mkdir /${FTPATH}/${TIM}
+dir
+EOF
 	for BK in $(ls $READFROM/$TIM/);do
 		logEventTime "send [$BK] via ftp ..."
 		cd $SCR
-		$CLI -u $USR -p $PSS -v -z -t 3 -F -P $PRT $FTP / $READFROM/$TIM/$BK >> $LOG 2>&1
+		$CLI -u $USR -p $PSS -v -z -t 3 -F -P $PRT $FTP / $READFROM/$TIM/$BK >> $LOG 2> $LOG
 	done
 	logEventTime "Enabling FTP client firewall ..."
 	esxcli network firewall set --enabled true >> $LOG 2>&1
