@@ -78,7 +78,8 @@ RESULTTITLE="SUCCESS"
 
 #[ Script infos ]#
 SCR=/vmfs/volumes/datastore1/script/         #script path
-CLI=./ncftp/bin/ncftpput                     #Path to ncftpput command 
+CLI=./ncftp/bin/ncftp                        #Path to ncftp command 
+CLIPUT=./ncftp/bin/ncftpput                  #Path to ncftpput command 
 LOGP=/vmfs/volumes/datastore1/log/
 LOG=${LOGP}/backup.log                       #script logs
 
@@ -282,7 +283,7 @@ EOF
 	for BK in $(ls $READFROM/$TIM/);do
 		logEventTime "send [$BK] via ftp ..."
 		cd $SCR
-		$CLI -u $USR -p $PSS -v -z -t 3 -F -P $PRT $FTP / $READFROM/$TIM/$BK >> $LOG 2> $LOG
+		$CLIPUT -u $USR -p $PSS -v -z -t 3 -F -P $PRT $FTP / $READFROM/$TIM/$BK >> $LOG 2> $LOG
 	done
 	logEventTime "Enabling FTP client firewall ..."
 	esxcli network firewall set --enabled true >> $LOG 2>&1
