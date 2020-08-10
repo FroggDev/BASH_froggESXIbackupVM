@@ -283,7 +283,8 @@ EOF
 	for BK in $(ls $READFROM/$TIM/);do
 		logEventTime "send [$BK] via ftp ..."
 		cd $SCR
-		$CLIPUT -u $USR -p $PSS -v -z -t 3 -F -P $PRT $FTP / $READFROM/$TIM/$BK >> $LOG 2> $LOG
+		echo $CLIPUT -u $USR -p $PSS -v -z -t 3 -F -P $PRT $FTP /${FTPATH}/${TIM} $READFROM/$TIM/$BK > $LOG
+		$CLIPUT -u $USR -p $PSS -v -z -t 3 -F -P $PRT $FTP /${FTPATH}/${TIM} $READFROM/$TIM/$BK
 	done
 	logEventTime "Enabling FTP client firewall ..."
 	esxcli network firewall set --enabled true >> $LOG 2>&1
