@@ -17,9 +17,9 @@ SCD="BackUp all Vm in ESXI and send it to ftp server"
 SCT="Esxi 5.1 to 6.7"              # script OS Test
 SRQ="Required version : Esxi 5.1+" # script Required
 SCC="sh ${0##*/}"                  # script call
-SCV="1.001"                        # script version
+SCV="1.0.2"                        # script version
 SCO="2015/02/23"                   # script date creation
-SCU="2020/07/08"                   # script last modification
+SCU="2020/09/18"                   # script last modification
 SCA="Marsiglietti Remy (Frogg)"    # script author
 SCM="admin@frogg.fr"               # script author Mail
 SCS="cv.frogg.fr"                  # script author Website
@@ -60,6 +60,8 @@ BAK=/vmfs/volumes/backup         #BACKUP COPY folder
 MAXTAR=5                         #MAX nb of backup in $TAR
 MAXBAK=5                         #MAX nb of backup in $BAK
 MAXBAR=5                         #MAX nb of backup in $BAR
+#[ Esxi system file ]#
+ESXIFILES="/etc/rc.local.d/local.sh /etc/vmware/hostd/vmAutoStart.xml"
 #[ FTP infos ]#
 FTP=ftp.smtp.domain.ltd          #This is the FTP servers host or IP address.
 PRT=21                           #This is the FTP servers port
@@ -70,12 +72,12 @@ FTPATH=backup-esxi               #This is the root FTP folder.
 SMTP="smtp.domain.ltd"           #smtp client used to send the mail
 SMTPPORT=25                      #smtp port
 SNAME="domain.ltd"               #server name from smtp ELO
+# -- EMAIL RESULT
 EFROM="emailfrom@domain.ltd"     #email from
 ETO="emailto1@domain.ltd emailto2@domain.ltd" #email to (for multiple recipient must be separated by space)
 ELOG="base64loginsmtp"           #email smtp log base64 encoded
 EPAS="base64passsmtp"            #email smtp pass base64 encoded
 RESULTTITLE="SUCCESS"
-
 #[ Script infos ]#
 SCR=/vmfs/volumes/datastore1/script/         #script path
 CLI=./ncftp/bin/ncftp                        #Path to ncftp command 
@@ -130,7 +132,7 @@ logEventTime "...Checking if server '${1}' is available, please wait..."
 if nc -w5 -z ${1} ${2} &> /dev/null;then
 	logEventTime "Server [${1}:${2}] port is opened !"	
 else
-        RESULTTITLE="WARNING"
+  RESULTTITLE="WARNING"
 	logEventTime "Can't access to Server port [${1}:${2}], End of the script"
 	sendLogByMail
 	exit
@@ -174,21 +176,21 @@ logEventTime "*******************************************"
 logEventTime ""
 
 if [ $doTAR = 0 -a $doBAK = 0 ];then
-        RESULTTITLE="ERROR"
+  RESULTTITLE="ERROR"
 	logEventTime "ERROR: Tar and Copy backup are disabled...script require at least one of both action"
 	logEventTime "Please check script configuration, script is ending"
 	sendLogByMail
 	exit
 fi
 if [ $doFTP = 1 -a $doTAR = 0 ];then
-        RESULTTITLE="WARNING"
+  RESULTTITLE="WARNING"
 	logEventTime "WARNING: Tar backup is disabled...script require it enabled to FTP compressed files"
 	logEventTime "script is forcing Tar creation to be correct"
 	logEventTime "Please check script configuration for doTAR value, script continue"
 	doTAR=1
 fi
 if [ $doBAR = 1 -a $doTAR = 0 ];then
-        RESULTTITLE="WARNING"
+  RESULTTITLE="WARNING"
 	logEventTime "WARNING: Tar backup is disabled...script require it enabled to backup compressed files"
 	logEventTime "script is forcing Tar creation to be correct"
 	logEventTime "Please check script configuration for doTAR value, script continue"
@@ -260,39 +262,55 @@ for VM in $(ls $SRC);do
 	fi
 done
 
-#==[ PART 3 ] Send to BackUp FTP==#
+#==[ PART 3 ] Backup system file==#
+logEventTime ""
+logEventTime "[ III ] Saving system files"
+logEventTime "==========================="
+logEventTime ""
+for efiles in ${ESXIFILES}; 
+do 
+		logEventTime "copying ${efiles} to $TAR/$TIM/"
+    cp ${efiles} $TAR/$TIM/;
+done
+
+#==[ PART 4 ] Send to BackUp FTP==#
 if [ $doFTP = 1 ];then
 
   [[ $doTAR = 1 ]] && READFROM=$TAR
   [[ $doBAR = 1 ]] && READFROM=$BAK
 
 	logEventTime ""
-	logEventTime "[ III ] Sending by FTP"
+	logEventTime "[ IV ] Sending by FTP"
 	logEventTime "====================="
 	logEventTime ""
+
 	logEventTime "Disable FTP client firewall ..."
 	esxcli network firewall set --enabled false >> $LOG 2>&1
-	# Test FTP Conn
-	testConn $FTP $PRT  
-  	# Create the FTP remote folder
-  	$CLI ftp://$USR:$PSS@$FTP:$PRT/<<EOF
+  
+  # Test FTP Conn
+  testConn $FTP $PRT  
+  
+  # Create the FTP remote folder
+	cd $SCR
+  $CLI ftp://$USR:$PSS@$FTP:$PRT/<<EOF
 mkdir /${FTPATH}
 mkdir /${FTPATH}/${TIM}
 dir
 EOF
+  
 	for BK in $(ls $READFROM/$TIM/);do
 		logEventTime "send [$BK] via ftp ..."
 		cd $SCR
-		echo $CLIPUT -u $USR -p $PSS -v -z -t 3 -F -P $PRT $FTP /${FTPATH}/${TIM} $READFROM/$TIM/$BK > $LOG
+    echo $CLIPUT -u $USR -p $PSS -v -z -t 3 -F -P $PRT $FTP /${FTPATH}/${TIM} $READFROM/$TIM/$BK > $LOG
 		$CLIPUT -u $USR -p $PSS -v -z -t 3 -F -P $PRT $FTP /${FTPATH}/${TIM} $READFROM/$TIM/$BK
 	done
 	logEventTime "Enabling FTP client firewall ..."
 	esxcli network firewall set --enabled true >> $LOG 2>&1
 fi
 
-#==[ PART 4 ] END==#
+#==[ PART 5 ] END==#
 logEventTime ""
 logEventTime "Script Done !"
 
-#==[ PART 5 ] EMAIL==#
+#==[ PART 6 ] EMAIL==#
 sendLogByMail
